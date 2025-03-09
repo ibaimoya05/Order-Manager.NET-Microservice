@@ -1,0 +1,193 @@
+@page "/cart"
+@using ProductCrudBlazor.Services
+@inject CartService CartService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@using ProductCrudBlazor.Models
+
+<div class="cart-container">
+    <div class="cart-items">
+        <h3>Shopping Cart</h3>
+
+        @if (cartItems.Any())
+        {
+            <div class="cart-list">
+                @foreach (var item in cartItems)
+                {
+                    <div class="cart-item">
+                        <div class="item-details">
+                            <h4>@item.ProductName</h4>
+                            <p class="price">@item.Price.ToString("C")</p>
+                            <div class="quantity-controls">
+                                <span>Quantity: @item.Quantity</span>
+                                <span class="subtotal">Subtotal: @((item.Price * item.Quantity).ToString("C"))</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger" @onclick='() => RemoveFromCart(item.ProductId)'>
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-cart">
+                <i class="bi bi-cart-x"></i>
+                <p>Your cart is empty</p>
+            </div>
+        }
+    </div>
+
+    @if (cartItems.Any())
+    {
+        <div class="cart-summary">
+            <h4>Order Summary</h4>
+            <div class="summary-details">
+                <div class="summary-row">
+                    <span>Items (@cartItems.Sum(i => i.Quantity)):</span>
+                    <span>@(cartItems.Sum(i => i.Price * i.Quantity).ToString("C"))</span>
+                </div>
+                <hr />
+                <div class="summary-row total">
+                    <span>Total:</span>
+                    <span>@(cartItems.Sum(i => i.Price * i.Quantity).ToString("C"))</span>
+                </div>
+                <button class="btn btn-primary btn-block" @onclick="CreateOrder">
+                    Place Order
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .cart-container {
+        display: flex;
+        gap: 2rem;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .cart-items {
+        flex: 1;
+    }
+
+    .cart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .item-details {
+        flex: 1;
+    }
+
+    .item-details h4 {
+        margin: 0 0 0.5rem 0;
+        color: #333;
+    }
+
+    .price {
+        font-size: 1.1rem;
+        color: #2c3e50;
+        font-weight: bold;
+    }
+
+    .quantity-controls {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.5rem;
+        color: #666;
+    }
+
+    .subtotal {
+        font-weight: bold;
+    }
+
+    .cart-summary {
+        width: 300px;
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: fit-content;
+    }
+
+    .summary-details {
+        margin-top: 1rem;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .total {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-top: 1rem;
+    }
+
+    .btn-block {
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .empty-cart {
+        text-align: center;
+        padding: 2rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .empty-cart i {
+        font-size: 3rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    hr {
+        margin: 1rem 0;
+        border-color: #dee2e6;
+    }
+</style>
+
+@code {
+    private List<CartItem> cartItems = new List<CartItem>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cart = await CartService.GetCartAsync();
+        cartItems = cart.Items;
+    }
+
+    private async Task RemoveFromCart(int productId)
+    {
+        await CartService.RemoveFromCart(productId);
+        var cart = await CartService.GetCartAsync();
+        cartItems = cart.Items;
+    }
+
+    private async Task CreateOrder()
+    {
+        try
+        {
+            var order = await CartService.CreateOrder();
+            await JS.InvokeVoidAsync("alert", "Pedido creado con éxito!");
+            Navigation.NavigateTo("/orders");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al crear el pedido: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ApiSettings__ProductApiUrl=http://productservice:8080
+      - ApiSettings__OrderApiUrl=http://orderservice:80
+    depends_on:
+      - productservice
+      - orderservice
+    networks:
+      - app-network
+
+  productservice:
+    build:
+      context: ./API/ProductService
+      dockerfile: Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=productdb;Username=postgres;Password=test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  orderservice:
+    build:
+      context: ./API/OrderService
+      dockerfile: Dockerfile
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=orderdb;Username=postgres;Password=test
+      - ApiSettings__ProductApiUrl=http://productservice:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_USER=postgres
+      - POSTGRES_MULTIPLE_DATABASES=productdb,orderdb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
